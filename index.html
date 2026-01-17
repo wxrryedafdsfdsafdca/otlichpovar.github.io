@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="От-Личный повар">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-startup-image" href="icons/icon-512x512.png">
+    
+    <title>От-Личный повар</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            background: #f8f9fa;
+            overscroll-behavior-y: none;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        /* Cards & Interactive */
+        .chef-card, .dish-card, .order-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .chef-card:active, .dish-card:active, .order-card:active { transform: scale(0.97); }
+        
+        /* Navigation */
+        .nav-item { transition: all 0.2s ease; }
+        .nav-item.active { color: #8b5cf6; }
+        .nav-item.active i { transform: scale(1.1); }
+        
+        /* Chips & Badges */
+        .category-chip { transition: all 0.2s ease; }
+        .category-chip.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        .status-badge { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Carousel */
+        .banner-slider { scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .banner-slider > * { scroll-snap-align: start; flex-shrink: 0; }
+        
+        /* Hide scrollbars but keep functionality */
+        .scrollbar-hide::-webkit-scrollbar { display: none; height: 0; width: 0; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Modal animations */
+        .modal { backdrop-filter: blur(4px); }
+        .modal-content { animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Skeleton loading */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Rating stars */
+        .star-rating { color: #fbbf24; }
+        .star-empty { color: #d1d5db; }
+        
+        /* Toast notifications */
+        .toast { animation: slideDown 0.3s ease; z-index: 100; }
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        /* Step indicator */
+        .step-dot { transition: all 0.3s ease; }
+        .step-dot.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        .step-dot.completed { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        
+        /* Order tracking progress */
+        .tracking-step { transition: all 0.3s ease; }
+        .tracking-step.active .step-icon { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        .tracking-step.completed .step-icon { background: #10b981; color: white; border-color: #10b981; }
+        .tracking-line { transition: all 0.3s ease; }
+        .tracking-line.completed { background: #10b981; }
+        
+        /* Search */
+        .search-active { background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        /* Heart animation */
+        .heart-btn.liked i { color: #ef4444; animation: heartBeat 0.3s ease; }
+        @keyframes heartBeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        /* Promo code */
+        .promo-applied { background: #ecfdf5; border-color: #10b981; }
+        .promo-error { background: #fef2f2; border-color: #ef4444; }
+        
+        /* Pulse animation for tracking */
+        .pulse-dot { animation: pulseDot 2s infinite; }
+        @keyframes pulseDot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
+        }
+        
+        /* Safe area padding for iOS */
+        .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen safe-area-pb">
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center z-50">
+        <div class="text-center text-white">
+            <div class="relative mb-6">
+                <i class="fas fa-utensils text-7xl mb-4"></i>
+                <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-white/30 rounded-full"></div>
+            </div>
+            <h1 class="text-3xl font-bold mb-2 tracking-tight">От-Личный повар</h1>
+            <p class="text-purple-200 text-sm">Доставка от лучших поваров города</p>
+            <div class="mt-8 flex justify-center">
+                <div class="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 left-4 right-4 z-50 pointer-events-none"></div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/50 modal hidden z-40">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 modal-content">
+                <!-- Step 1: Phone -->
+                <div id="auth-step-1">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-mobile-alt text-4xl text-purple-600 mb-3"></i>
+                        <h2 class="text-2xl font-bold">Войти</h2>
+                        <p class="text-gray-500 text-sm mt-1">Введите номер телефона для входа</p>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Номер телефона</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">+7</span>
+                            <input type="tel" id="phone-input" 
+                                   class="w-full p-3 pl-12 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+                                   placeholder="(___) ___-__-__" inputmode="numeric">
+                        </div>
+                    </div>
+                    <button onclick="sendSMSCode()" 
+                            class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-semibold hover:bg-purple-700 transition shadow-lg shadow-purple-200 active:scale-98">
+                        Получить код
+                    </button>
+                    <p class="text-xs text-gray-400 text-center mt-4">Нажимая кнопку, вы соглашаетесь с условиями использования</p>
+                </div>
+                
+                <!-- Step 2: SMS Code -->
+                <div id="auth-step-2" class="hidden">
+                    <div class="text-center mb-6">
+                        <i class="fas fa-shield-alt text-4xl text-purple-600 mb-3"></i>
+                        <h2 class="text-2xl font-bold">Подтверждение</h2>
+                        <p class="text-gray-500 text-sm mt-1">Введите код из SMS</p>
+                        <p class="text-purple-600 font-medium mt-2" id="sent-phone-display"></p>
+                    </div>
+                    <div class="flex gap-2 mb-6 justify-center">
+                        <input type="text" maxlength="1" inputmode="numeric" 
+                               class="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 otp-input">
+                        <input type="text" maxlength="1" inputmode="numeric" 
+                               class="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 otp-input">
+                        <input type="text" maxlength="1" inputmode="numeric" 
+                               class="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 otp-input">
+                        <input type="text" maxlength="1" inputmode="numeric" 
+                               class="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-gray-50 otp-input">
+                    </div>
+                    <button onclick="verifyCode()" 
+                            class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-semibold hover:bg-purple-700 transition shadow-lg shadow-purple-200 active:scale-98">
+                        Войти
+                    </button>
+                    <button onclick="resetAuth()" class="w-full mt-3 text-gray-500 text-sm hover:text-gray-700">
+                        Изменить номер
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Modal -->
+    <div id="location-modal" class="fixed inset-0 bg-black/50 modal hidden z-40">
+        <div class="flex items-end sm:items-center justify-center min-h-screen">
+            <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 modal-content">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-location-dot text-3xl text-purple-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold mb-2">Разрешите доступ к геолокации</h2>
+                    <p class="text-gray-600 text-sm mb-6">Это необходимо для поиска поваров рядом с вами и точной доставки</p>
+                    <div class="space-y-3">
+                        <button onclick="requestLocation()" 
+                                class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-semibold shadow-lg shadow-purple-200 active:scale-98">
+                            <i class="fas fa-crosshairs mr-2"></i>Разрешить доступ
+                        </button>
+                        <button onclick="selectLocationManually()" 
+                                class="w-full border border-gray-300 text-gray-700 py-3.5 rounded-xl font-semibold active:scale-98">
+                            <i class="fas fa-map-marker-alt mr-2"></i>Выбрать вручную
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Be a Chef Modal -->
+    <div id="chef-apply-modal" class="fixed inset-0 bg-black/50 modal hidden z-50">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold">Стать поваром</h2>
+                        <p class="text-sm text-gray-500">Присоединяйтесь к нашей команде</p>
+                    </div>
+                    <button onclick="closeChefModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl">&times;</button>
+                </div>
+                <form id="chef-apply-form" onsubmit="submitChefApplication(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ФИО *</label>
+                        <input type="text" name="fullName" required placeholder="Иванов Иван Иванович"
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Телефон *</label>
+                        <input type="tel" name="phone" required placeholder="+7 (___) ___-__-__"
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Специализация (кухня) *</label>
+                        <select name="cuisine" required class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                            <option value="">Выберите кухню</option>
+                            <option value="russian">Русская кухня</option>
+                            <option value="italian">Итальянская кухня</option>
+                            <option value="asian">Азиатская кухня</option>
+                            <option value="european">Европейская кухня</option>
+                            <option value="caucasian">Кавказская кухня</option>
+                            <option value="mediterranean">Средиземноморская кухня</option>
+                            <option value="fusion">Фьюжн</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Опыт работы *</label>
+                        <textarea name="experience" required placeholder="Расскажите о вашем опыте, местах работы, достижениях..." 
+                                  class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none h-24 resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Средний чек (₽)</label>
+                        <input type="number" name="avgPrice" placeholder="Например: 500" min="100" max="10000"
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Портфолио (ссылки)</label>
+                        <input type="url" name="portfolio" placeholder="https://instagram.com/... или сайт"
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-purple-200 active:scale-98">
+                            Отправить заявку
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Address Modal -->
+    <div id="address-modal" class="fixed inset-0 bg-black/50 modal hidden z-50">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 modal-content max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="address-modal-title" class="text-xl font-bold">Новый адрес</h2>
+                    <button onclick="closeAddressModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl">&times;</button>
+                </div>
+                <form id="address-form" onsubmit="saveAddress(event)" class="space-y-3">
+                    <input type="hidden" id="address-id">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Название *</label>
+                        <input type="text" id="address-label" placeholder="Дом, Работа, Дача" required
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Город *</label>
+                        <input type="text" id="address-city" placeholder="Москва" required
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Улица, дом *</label>
+                        <input type="text" id="address-line" placeholder="ул. Примерная, д. 1" required
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Подъезд</label>
+                            <input type="text" id="address-entrance" placeholder="1"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Этаж</label>
+                            <input type="text" id="address-floor" placeholder="5"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Квартира/Офис</label>
+                            <input type="text" id="address-apartment" placeholder="81"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Домофон</label>
+                            <input type="text" id="address-intercom" placeholder="81"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Комментарий курьеру</label>
+                        <textarea id="address-comment" placeholder="Не звонить, оставить у двери..." 
+                                  class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none h-20 resize-none"></textarea>
+                    </div>
+                    <label class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
+                        <input type="checkbox" id="address-default" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500">
+                        <span class="text-sm font-medium">Сделать адресом по умолчанию</span>
+                    </label>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-purple-200">
+                        Сохранить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="fixed inset-0 bg-black/50 modal hidden z-50">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="payment-modal-title" class="text-xl font-bold">Новая карта</h2>
+                    <button onclick="closePaymentModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl">&times;</button>
+                </div>
+                <form id="payment-form" onsubmit="savePayment(event)" class="space-y-3">
+                    <input type="hidden" id="payment-id">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Название</label>
+                        <input type="text" id="payment-label" placeholder="Основная карта" required
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Номер карты</label>
+                        <input type="text" id="payment-pan" inputmode="numeric" placeholder="0000 0000 0000 0000" maxlength="19"
+                               class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-lg tracking-widest">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Срок</label>
+                            <input type="text" id="payment-exp" inputmode="numeric" placeholder="ММ/ГГ" maxlength="5"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CVC</label>
+                            <input type="password" id="payment-cvc" inputmode="numeric" placeholder="123" maxlength="4"
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                    </div>
+                    <label class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
+                        <input type="checkbox" id="payment-default" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500">
+                        <span class="text-sm font-medium">Сделать по умолчанию</span>
+                    </label>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-purple-200">
+                        Сохранить
+                    </button>
+                    <p class="text-xs text-gray-400 text-center">Данные карты сохраняются локально. В продакшене — токенизация.</p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Success Modal -->
+    <div id="order-success-modal" class="fixed inset-0 bg-black/50 modal hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center modal-content">
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check text-4xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Заказ оформлен!</h2>
+                <p class="text-gray-600 text-sm mb-4">Номер заказа: <span id="success-order-id" class="font-mono font-bold"></span></p>
+                <p class="text-gray-500 text-sm mb-6">Мы отправили уведомление о статусе заказа</p>
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-gray-600">Время доставки</span>
+                        <span class="font-semibold" id="success-delivery-time">--:--</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-600">Сумма</span>
+                        <span class="font-bold text-purple-600" id="success-total">0 ₽</span>
+                    </div>
+                </div>
+                <button onclick="closeOrderSuccess()" 
+                        class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-purple-200">
+                    Отлично
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Address Selector (Action Sheet) -->
+    <div id="address-selector-modal" class="fixed inset-0 bg-black/50 modal hidden z-40">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md modal-content overflow-hidden">
+                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-lg">Адрес доставки</h3>
+                        <p class="text-xs text-gray-500">Выберите адрес по умолчанию</p>
+                    </div>
+                    <button onclick="closeAddressSelector()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl">&times;</button>
+                </div>
+                <div id="address-selector-list" class="p-4 space-y-2 max-h-[60vh] overflow-y-auto"></div>
+                <div class="p-4 border-t border-gray-100 grid grid-cols-2 gap-2">
+                    <button onclick="showAddresses(); closeAddressSelector();" class="py-3 rounded-xl bg-gray-100 text-gray-800 font-semibold">Управлять</button>
+                    <button onclick="openAddressModal(); closeAddressSelector();" class="py-3 rounded-xl bg-purple-600 text-white font-bold">Добавить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin: Order Control Modal -->
+    <div id="admin-order-modal" class="fixed inset-0 bg-black/50 modal hidden z-50">
+        <div class="flex items-end sm:items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md p-6 modal-content">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="font-bold text-lg">Управление заказом</h3>
+                        <p class="text-xs text-gray-500" id="admin-order-title">—</p>
+                    </div>
+                    <button onclick="closeAdminOrderModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xl">&times;</button>
+                </div>
+                <div class="space-y-2" id="admin-order-status-buttons"></div>
+                <div class="mt-4 text-xs text-gray-500">Для демо: админ может менять статус заказа вручную.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app-container" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-30 safe-area-pt">
+            <div class="px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <button onclick="toggleSearch()" class="p-2 -ml-2">
+                            <i class="fas fa-search text-gray-600"></i>
+                        </button>
+                        <div class="flex-1 min-w-0" onclick="openAddressSelector()">
+                            <p class="text-xs text-gray-500 flex items-center">
+                                <i class="fas fa-location-dot text-purple-600 mr-1"></i>
+                                Доставка в
+                            </p>
+                            <p id="current-address" class="text-sm font-semibold truncate">Москва, ул. Примерная, 1</p>
+                        </div>
+                    </div>
+                    <button onclick="showProfile()" class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center ml-2">
+                        <i class="fas fa-user text-purple-600"></i>
+                    </button>
+                </div>
+                <!-- Search Bar (hidden by default) -->
+                <div id="search-bar" class="hidden mt-3">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="search-input" placeholder="Поиск блюд и поваров..." 
+                               class="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                               oninput="handleSearch(this.value)">
+                        <button onclick="closeSearch()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <!-- Search Results -->
+                    <div id="search-results" class="mt-3 max-h-80 overflow-y-auto hidden"></div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="pb-24">
+            <!-- Home Screen -->
+            <div id="home-screen" class="screen active">
+                <!-- Banner Carousel -->
+                <div class="px-4 pt-4">
+                    <div class="banner-slider flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+                        <div class="snap-start flex-shrink-0 w-[85vw] h-36 bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl p-5 text-white relative overflow-hidden">
+                            <div class="relative z-10">
+                                <span class="text-xs bg-white/20 px-2 py-1 rounded-lg mb-2 inline-block">Новинка</span>
+                                <h3 class="font-bold text-lg">Новые повара!</h3>
+                                <p class="text-sm opacity-90">Откройте новые вкусы</p>
+                            </div>
+                            <i class="fas fa-utensils absolute -right-4 -bottom-4 text-8xl text-white/10"></i>
+                        </div>
+                        <div class="snap-start flex-shrink-0 w-[85vw] h-36 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-5 text-white relative overflow-hidden">
+                            <div class="relative z-10">
+                                <span class="text-xs bg-white/20 px-2 py-1 rounded-lg mb-2 inline-block">Акция</span>
+                                <h3 class="font-bold text-lg">Скидка 20%</h3>
+                                <p class="text-sm opacity-90">На первый заказ</p>
+                            </div>
+                            <i class="fas fa-percent absolute -right-4 -bottom-4 text-8xl text-white/10"></i>
+                        </div>
+                        <div class="snap-start flex-shrink-0 w-[85vw] h-36 bg-gradient-to-r from-green-500 to-teal-500 rounded-2xl p-5 text-white relative overflow-hidden">
+                            <div class="relative z-10">
+                                <span class="text-xs bg-white/20 px-2 py-1 rounded-lg mb-2 inline-block">Бесплатно</span>
+                                <h3 class="font-bold text-lg">Доставка 0 ₽</h3>
+                                <p class="text-sm opacity-90">При заказе от 1000₽</p>
+                            </div>
+                            <i class="fas fa-truck absolute -right-4 -bottom-4 text-8xl text-white/10"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="px-4 py-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Категории</h2>
+                        <button onclick="showCatalog()" class="text-purple-600 text-sm font-medium">Все</button>
+                    </div>
+                    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        <button onclick="selectCategory(this, 'all')" class="category-chip active flex-shrink-0 px-5 py-2.5 bg-purple-600 text-white rounded-full text-sm font-medium shadow-lg shadow-purple-200">
+                            Все
+                        </button>
+                        <button onclick="selectCategory(this, 'russian')" class="category-chip flex-shrink-0 px-5 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium">
+                            <i class="fas fa-utensils mr-1 text-purple-600"></i>Русская
+                        </button>
+                        <button onclick="selectCategory(this, 'italian')" class="category-chip flex-shrink-0 px-5 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium">
+                            <i class="fas fa-pizza-slice mr-1 text-orange-500"></i>Итальянская
+                        </button>
+                        <button onclick="selectCategory(this, 'asian')" class="category-chip flex-shrink-0 px-5 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium">
+                            <i class="fas fa-bowl-rice mr-1 text-red-500"></i>Азиатская
+                        </button>
+                        <button onclick="selectCategory(this, 'european')" class="category-chip flex-shrink-0 px-5 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-medium">
+                            <i class="fas fa-wine-glass mr-1 text-blue-500"></i>Европейская
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Best Dishes For You -->
+                <div class="px-4 pb-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Лучшие блюда для вас</h2>
+                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Персональное</span>
+                    </div>
+                    <div id="best-dishes-home" class="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+                        <!-- Dynamic: Best dishes -->
+                    </div>
+                </div>
+
+                <!-- Chefs Nearby -->
+                <div class="px-4 pb-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Повара рядом</h2>
+                        <button onclick="showCatalog()" class="text-purple-600 text-sm font-medium">Все</button>
+                    </div>
+                    <div id="chefs-nearby" class="space-y-3">
+                        <!-- Dynamic: Chefs -->
+                    </div>
+                </div>
+
+                <!-- Become a Chef Banner -->
+                <div class="px-4 pb-5">
+                    <div class="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-2xl p-5 text-white relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-hat-chef text-2xl"></i>
+                                <h3 class="font-bold text-lg">Зарабатывайте готовя</h3>
+                            </div>
+                            <p class="text-indigo-200 text-sm mb-3">Присоединяйтесь к команде профессиональных поваров и получайте заказы</p>
+                            <button onclick="showBeChefForm()" class="bg-white text-indigo-900 px-4 py-2 rounded-xl font-semibold text-sm">
+                                Стать поваром
+                            </button>
+                        </div>
+                        <i class="fas fa-hat-chef absolute -right-4 -bottom-6 text-9xl text-indigo-800 opacity-30"></i>
+                    </div>
+                </div>
+
+                <!-- Popular Chefs -->
+                <div class="px-4 pb-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Популярные повара</h2>
+                        <button onclick="showCatalog()" class="text-purple-600 text-sm font-medium">Все</button>
+                    </div>
+                    <div id="popular-chefs" class="space-y-3">
+                        <!-- Dynamic: Chefs -->
+                    </div>
+                </div>
+
+                <!-- New Chefs -->
+                <div class="px-4 pb-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold">Новые повара</h2>
+                        <button onclick="showCatalog()" class="text-purple-600 text-sm font-medium">Все</button>
+                    </div>
+                    <div id="new-chefs" class="space-y-3">
+                        <!-- Dynamic: Chefs -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catalog Screen -->
+            <div id="catalog-screen" class="screen">
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h1 class="text-xl font-bold">Каталог поваров</h1>
+                        <span id="chefs-count" class="text-sm text-gray-500">-- поваров</span>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="bg-white rounded-2xl shadow-sm p-4 mb-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="font-semibold">Фильтры</span>
+                            <button onclick="clearFilters()" class="text-purple-600 text-sm font-medium">Сбросить</button>
+                        </div>
+                        
+                        <!-- Distance -->
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600">Расстояние</span>
+                                <span id="distance-value" class="font-medium">до 10 км</span>
+                            </div>
+                            <input type="range" id="distance-filter" min="1" max="20" value="10" 
+                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                   onchange="applyFilters()">
+                        </div>
+
+                        <!-- Rating -->
+                        <div class="mb-4">
+                            <p class="text-sm text-gray-600 mb-2">Рейтинг</p>
+                            <div class="flex gap-2">
+                                <button onclick="setRatingFilter(0, this)" class="rating-filter flex-1 py-2 px-3 bg-purple-600 text-white rounded-lg text-sm font-medium">Любой</button>
+                                <button onclick="setRatingFilter(4, this)" class="rating-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">4+</button>
+                                <button onclick="setRatingFilter(4.5, this)" class="rating-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">4.5+</button>
+                                <button onclick="setRatingFilter(4.8, this)" class="rating-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">4.8+</button>
+                            </div>
+                        </div>
+
+                        <!-- Price -->
+                        <div class="mb-4">
+                            <p class="text-sm text-gray-600 mb-2">Средний чек</p>
+                            <div class="flex gap-2 flex-wrap">
+                                <button onclick="setPriceFilter('all', this)" class="price-filter flex-1 py-2 px-3 bg-purple-600 text-white rounded-lg text-sm font-medium min-w-[70px]">Все</button>
+                                <button onclick="setPriceFilter('low', this)" class="price-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium min-w-[70px]">До 350₽</button>
+                                <button onclick="setPriceFilter('medium', this)" class="price-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium min-w-[70px]">350-500₽</button>
+                                <button onclick="setPriceFilter('high', this)" class="price-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium min-w-[70px]">500₽+</button>
+                            </div>
+                        </div>
+
+                        <!-- Cuisine -->
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Кухня</p>
+                            <div class="flex gap-2 flex-wrap">
+                                <button onclick="setCuisineFilter('all', this)" class="cuisine-filter flex-1 py-2 px-3 bg-purple-600 text-white rounded-lg text-sm font-medium min-w-[60px]">Все</button>
+                                <button onclick="setCuisineFilter('russian', this)" class="cuisine-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Рус</button>
+                                <button onclick="setCuisineFilter('italian', this)" class="cuisine-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Итал</button>
+                                <button onclick="setCuisineFilter('asian', this)" class="cuisine-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Азия</button>
+                                <button onclick="setCuisineFilter('european', this)" class="cuisine-filter flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Евр</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chefs List -->
+                    <div id="catalog-chefs" class="space-y-3">
+                        <!-- Dynamic: Chefs with dishes -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chef Detail Screen -->
+            <div id="chef-detail-screen" class="screen">
+                <div id="chef-detail-content">
+                    <!-- Dynamic: Chef detail -->
+                </div>
+            </div>
+
+            <!-- Cart Screen -->
+            <div id="cart-screen" class="screen">
+                <div class="p-4">
+                    <h1 class="text-xl font-bold mb-4">Корзина</h1>
+                    
+                    <!-- Promo Code -->
+                    <div id="promo-section" class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fas fa-tag text-purple-600"></i>
+                            <span class="font-semibold">Промокод</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="promo-input" placeholder="Введите промокод" 
+                                   class="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none">
+                            <button onclick="applyPromo()" class="px-4 py-3 bg-gray-900 text-white rounded-xl font-medium">Применить</button>
+                        </div>
+                        <div id="promo-result" class="hidden mt-2 text-sm"></div>
+                    </div>
+
+                    <!-- Empty Cart -->
+                    <div id="cart-empty" class="hidden text-center py-12">
+                        <i class="fas fa-shopping-basket text-6xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500 mb-4">Корзина пуста</p>
+                        <button onclick="showHome()" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold">Выбрать блюда</button>
+                    </div>
+
+                    <!-- Cart Content -->
+                    <div id="cart-content" class="hidden">
+                        <div id="cart-chef-info" class="bg-white rounded-2xl p-4 mb-3 shadow-sm">
+                            <!-- Chef info -->
+                        </div>
+
+                        <div id="cart-items" class="space-y-2 mb-4">
+                            <!-- Cart items -->
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 shadow-sm">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600">Сумма заказа</span>
+                                <span id="cart-subtotal">0 ₽</span>
+                            </div>
+                            <div id="discount-row" class="flex justify-between text-sm mb-2 hidden">
+                                <span class="text-green-600">Скидка</span>
+                                <span id="cart-discount" class="text-green-600">-0 ₽</span>
+                            </div>
+                            <div class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-600">Доставка</span>
+                                <span id="cart-delivery">199 ₽</span>
+                            </div>
+                            <div class="border-t pt-2 mt-2 flex justify-between font-bold text-lg">
+                                <span>Итого</span>
+                                <span id="cart-total">0 ₽</span>
+                            </div>
+                        </div>
+
+                        <button onclick="startCheckout()" 
+                                class="w-full mt-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-purple-200">
+                            Оформить заказ
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Screen -->
+            <div id="orders-screen" class="screen">
+                <div class="p-4">
+                    <h1 class="text-xl font-bold mb-4">Мои заказы</h1>
+                    
+                    <!-- Tabs -->
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="switchTab('active', this)" class="tab-btn flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold">Активные</button>
+                        <button onclick="switchTab('completed', this)" class="tab-btn flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold">История</button>
+                    </div>
+
+                    <!-- Active Orders -->
+                    <div id="active-orders" class="space-y-3">
+                        <!-- Dynamic -->
+                    </div>
+
+                    <!-- Completed Orders -->
+                    <div id="completed-orders" class="space-y-3 hidden">
+                        <!-- Dynamic -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Detail/Tracking Screen -->
+            <div id="order-detail-screen" class="screen">
+                <div id="order-detail-content">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profile-screen" class="screen">
+                <div class="p-4">
+                    <h1 class="text-xl font-bold mb-6">Профиль</h1>
+                    
+                    <!-- User Info -->
+                    <div class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-2xl text-purple-600"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-lg" id="user-name">Гость</p>
+                                <p class="text-sm text-gray-600" id="user-phone">+7 (___) ___-__-__</p>
+                            </div>
+                            <button onclick="logout()" class="p-2 text-gray-400">
+                                <i class="fas fa-sign-out-alt text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 mt-4">
+                            <button onclick="showAddresses()" class="bg-purple-50 text-purple-700 py-2.5 rounded-xl text-sm font-semibold">
+                                <i class="fas fa-map-marker-alt mr-1"></i>Адреса
+                            </button>
+                            <button onclick="showPayments()" class="bg-purple-50 text-purple-700 py-2.5 rounded-xl text-sm font-semibold">
+                                <i class="fas fa-credit-card mr-1"></i>Оплата
+                            </button>
+                            <button onclick="showFavorites()" class="bg-purple-50 text-purple-700 py-2.5 rounded-xl text-sm font-semibold">
+                                <i class="fas fa-heart mr-1"></i>Избранное
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Menu Items -->
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm mb-4">
+                        <button onclick="showAddresses()" class="w-full flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-map-marker-alt text-purple-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Мои адреса</p>
+                                    <p class="text-sm text-gray-500" id="profile-address-count">0 адресов</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="showPayments()" class="w-full flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-credit-card text-purple-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Способы оплаты</p>
+                                    <p class="text-sm text-gray-500" id="profile-payment-count">0 карт</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="showFavorites()" class="w-full flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-heart text-purple-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Избранное</p>
+                                    <p class="text-sm text-gray-500" id="profile-favorites-count">0</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="showOrders()" class="w-full flex items-center justify-between p-4 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-receipt text-purple-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">История заказов</p>
+                                    <p class="text-sm text-gray-500">Все заказы</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Other Items -->
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm mb-4">
+                        <button onclick="showSupport()" class="w-full flex items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-headset text-purple-600"></i>
+                                </div>
+                                <p class="font-medium">Поддержка</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                        <button onclick="showAbout()" class="w-full flex items-center justify-between p-4 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-info-circle text-purple-600"></i>
+                                </div>
+                                <p class="font-medium">О приложении</p>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Admin Panel -->
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm mb-4">
+                        <button onclick="showAdmin()" class="w-full flex items-center justify-between p-4 active:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-shield-alt text-indigo-600"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-medium">Панель администратора</p>
+                                    <p class="text-xs text-gray-500">Управление заявками</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400"></i>
+                        </button>
+                    </div>
+
+                    <!-- Logout -->
+                    <button onclick="logout()" class="w-full bg-red-50 text-red-600 py-3 rounded-xl font-semibold">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Выйти из аккаунта
+                    </button>
+                </div>
+            </div>
+
+            <!-- Addresses Screen -->
+            <div id="addresses-screen" class="screen">
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button onclick="goBack()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Мои адреса</h1>
+                    </div>
+
+                    <div id="addresses-list" class="space-y-3 mb-4">
+                        <!-- Dynamic -->
+                    </div>
+
+                    <button onclick="openAddressModal()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-purple-200">
+                        <i class="fas fa-plus mr-2"></i>Добавить адрес
+                    </button>
+                </div>
+            </div>
+
+            <!-- Payments Screen -->
+            <div id="payments-screen" class="screen">
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button onclick="goBack()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Способы оплаты</h1>
+                    </div>
+
+                    <!-- Wallets -->
+                    <div class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                        <h2 class="font-semibold mb-3">Быстрая оплата</h2>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="addWallet('apple')" class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl active:bg-gray-50">
+                                <i class="fab fa-apple text-2xl"></i>
+                                <div class="text-left">
+                                    <p class="text-sm font-semibold">Apple Pay</p>
+                                    <p class="text-xs text-gray-500">Подключить</p>
+                                </div>
+                            </button>
+                            <button onclick="addWallet('google')" class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl active:bg-gray-50">
+                                <i class="fab fa-google text-2xl"></i>
+                                <div class="text-left">
+                                    <p class="text-sm font-semibold">Google Pay</p>
+                                    <p class="text-xs text-gray-500">Подключить</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="payments-list" class="space-y-3 mb-4">
+                        <!-- Dynamic -->
+                    </div>
+
+                    <button onclick="openPaymentModal()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-purple-200">
+                        <i class="fas fa-plus mr-2"></i>Добавить карту
+                    </button>
+                </div>
+            </div>
+
+            <!-- Favorites Screen -->
+            <div id="favorites-screen" class="screen">
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button onclick="goBack()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Избранное</h1>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="switchFavTab('chefs', this)" class="fav-tab flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold">Повара</button>
+                        <button onclick="switchFavTab('dishes', this)" class="fav-tab flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold">Блюда</button>
+                    </div>
+
+                    <div id="favorites-chefs" class="space-y-3">
+                        <!-- Dynamic -->
+                    </div>
+                    <div id="favorites-dishes" class="space-y-3 hidden">
+                        <!-- Dynamic -->
+                    </div>
+
+                    <div id="favorites-empty" class="hidden text-center py-12">
+                        <i class="far fa-heart text-6xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">Пока ничего нет</p>
+                        <p class="text-sm text-gray-400">Добавляйте поваров и блюда в избранное</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checkout Screen -->
+            <div id="checkout-screen" class="screen">
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button onclick="cancelCheckout()" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h1 class="text-xl font-bold">Оформление</h1>
+                    </div>
+
+                    <!-- Step Indicators -->
+                    <div class="flex items-center justify-between mb-6 px-2">
+                        <div class="step-dot active w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold" data-step="1">1</div>
+                        <div class="flex-1 h-1 mx-2 bg-gray-200 rounded">
+                            <div id="progress-1-2" class="h-full bg-purple-600 rounded w-0 transition-all"></div>
+                        </div>
+                        <div class="step-dot w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold" data-step="2">2</div>
+                        <div class="flex-1 h-1 mx-2 bg-gray-200 rounded">
+                            <div id="progress-2-3" class="h-full bg-purple-600 rounded w-0 transition-all"></div>
+                        </div>
+                        <div class="step-dot w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold" data-step="3">3</div>
+                        <div class="flex-1 h-1 mx-2 bg-gray-200 rounded">
+                            <div id="progress-3-4" class="h-full bg-purple-600 rounded w-0 transition-all"></div>
+                        </div>
+                        <div class="step-dot w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold" data-step="4">4</div>
+                        <div class="flex-1 h-1 mx-2 bg-gray-200 rounded">
+                            <div id="progress-4-5" class="h-full bg-purple-600 rounded w-0 transition-all"></div>
+                        </div>
+                        <div class="step-dot w-8 h-8 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold" data-step="5">5</div>
+                    </div>
+
+                    <!-- Step 1: Address -->
+                    <div id="checkout-step-1" class="checkout-step">
+                        <h2 class="text-lg font-bold mb-4">Адрес доставки</h2>
+                        
+                        <div id="saved-addresses" class="space-y-3 mb-4">
+                            <!-- Dynamic: Saved addresses -->
+                        </div>
+
+                        <button onclick="openAddressModal()" class="w-full border-2 border-dashed border-gray-300 text-gray-500 py-4 rounded-xl font-medium mb-4">
+                            <i class="fas fa-plus mr-2"></i>Добавить новый адрес
+                        </button>
+
+                        <button onclick="nextCheckoutStep()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold">
+                            Далее
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Time -->
+                    <div id="checkout-step-2" class="checkout-step hidden">
+                        <h2 class="text-lg font-bold mb-4">Время доставки</h2>
+                        
+                        <div class="space-y-3 mb-4">
+                            <label class="block bg-white p-4 rounded-xl border-2 border-purple-600 cursor-pointer">
+                                <input type="radio" name="delivery_time" value="asap" checked class="sr-only" onchange="updateDeliveryTime()">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold">Как можно быстрее</p>
+                                        <p class="text-sm text-gray-500">~ 45-60 минут</p>
+                                    </div>
+                                    <i class="fas fa-bolt text-purple-600"></i>
+                                </div>
+                            </label>
+                            
+                            <label class="block bg-white p-4 rounded-xl border-2 border-gray-200 cursor-pointer">
+                                <input type="radio" name="delivery_time" value="schedule" class="sr-only" onchange="updateDeliveryTime()">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-semibold">Запланировать</p>
+                                        <p class="text-sm text-gray-500">Выбрать время</p>
+                                    </div>
+                                    <i class="far fa-clock text-gray-400"></i>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="schedule-time" class="hidden mb-4">
+                            <input type="datetime-local" id="delivery-datetime" 
+                                   class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                        </div>
+
+                        <button onclick="nextCheckoutStep()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold">
+                            Далее
+                        </button>
+                    </div>
+
+                    <!-- Step 3: Delivery Service -->
+                    <div id="checkout-step-3" class="checkout-step hidden">
+                        <h2 class="text-lg font-bold mb-4">Служба доставки</h2>
+                        
+                        <div class="space-y-3 mb-4">
+                            <label class="block bg-white p-4 rounded-xl border-2 border-purple-600 cursor-pointer">
+                                <input type="radio" name="delivery_service" value="yandex" checked class="sr-only">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
+                                            <i class="fab fa-yandex text-yellow-600 text-lg"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold">Яндекс.Еда</p>
+                                            <p class="text-sm text-gray-500">25-35 мин • от 99 ₽</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            
+                            <label class="block bg-white p-4 rounded-xl border-2 border-gray-200 cursor-pointer">
+                                <input type="radio" name="delivery_service" value="dostavista" class="sr-only">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                            <i class="fas fa-motorcycle text-blue-600 text-lg"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold">Dostavista</p>
+                                            <p class="text-sm text-gray-500">30-45 мин • от 149 ₽</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            
+                            <label class="block bg-white p-4 rounded-xl border-2 border-gray-200 cursor-pointer">
+                                <input type="radio" name="delivery_service" value="pickup" class="sr-only">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                            <i class="fas fa-walking text-green-600 text-lg"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold">Самовывоз</p>
+                                            <p class="text-sm text-gray-500">Бесплатно</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <button onclick="nextCheckoutStep()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold">
+                            Далее
+                        </button>
+                    </div>
+
+                    <!-- Step 4: Payment -->
+                    <div id="checkout-step-4" class="checkout-step hidden">
+                        <h2 class="text-lg font-bold mb-4">Способ оплаты</h2>
+                        
+                        <div id="checkout-payments" class="space-y-3 mb-4">
+                            <!-- Dynamic: Payment methods -->
+                        </div>
+
+                        <button onclick="nextCheckoutStep()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold">
+                            Далее
+                        </button>
+                    </div>
+
+                    <!-- Step 5: Confirm -->
+                    <div id="checkout-step-5" class="checkout-step hidden">
+                        <h2 class="text-lg font-bold mb-4">Подтверждение заказа</h2>
+                        
+                        <div class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                            <h3 class="font-semibold mb-3 flex items-center">
+                                <i class="fas fa-map-marker-alt text-purple-600 mr-2"></i>
+                                <span id="checkout-address-display">Адрес</span>
+                            </h3>
+                            <hr class="my-3">
+                            <h3 class="font-semibold mb-3 flex items-center">
+                                <i class="fas fa-clock text-purple-600 mr-2"></i>
+                                <span id="checkout-time-display">Время</span>
+                            </h3>
+                            <hr class="my-3">
+                            <h3 class="font-semibold mb-3 flex items-center">
+                                <i class="fas fa-truck text-purple-600 mr-2"></i>
+                                <span id="checkout-service-display">Доставка</span>
+                            </h3>
+                            <hr class="my-3">
+                            <h3 class="font-semibold mb-2 flex items-center">
+                                <i class="fas fa-credit-card text-purple-600 mr-2"></i>
+                                <span id="checkout-payment-display">Оплата</span>
+                            </h3>
+                        </div>
+
+                        <div class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                            <h3 class="font-semibold mb-3">Состав заказа</h3>
+                            <div id="checkout-items" class="space-y-2 mb-3 max-h-40 overflow-y-auto">
+                                <!-- Items -->
+                            </div>
+                            <div class="border-t pt-3 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Сумма заказа</span>
+                                    <span id="checkout-subtotal">0 ₽</span>
+                                </div>
+                                <div id="checkout-discount-row" class="flex justify-between text-sm hidden">
+                                    <span class="text-green-600">Скидка</span>
+                                    <span id="checkout-discount" class="text-green-600">-0 ₽</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Доставка</span>
+                                    <span id="checkout-delivery">199 ₽</span>
+                                </div>
+                                <div class="flex justify-between font-bold text-lg pt-2 border-t">
+                                    <span>Итого</span>
+                                    <span id="checkout-total">0 ₽</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="confirmOrder()" 
+                                class="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-green-200">
+                            Подтвердить заказ
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Screen -->
+            <div id="admin-screen" class="screen bg-gray-50">
+                <div class="p-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <button onclick="goBack()" class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div>
+                            <h1 class="text-xl font-bold">Панель управления</h1>
+                            <p class="text-xs text-gray-500">Администратор</p>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-white p-4 rounded-2xl shadow-sm">
+                            <p class="text-sm text-gray-500 mb-1">Заказов сегодня</p>
+                            <p class="text-2xl font-bold" id="admin-orders-count">42</p>
+                            <p class="text-xs text-green-600 mt-1 font-medium">+12% <i class="fas fa-arrow-up"></i></p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl shadow-sm">
+                            <p class="text-sm text-gray-500 mb-1">Выручка</p>
+                            <p class="text-2xl font-bold" id="admin-revenue">54.2k ₽</p>
+                            <p class="text-xs text-green-600 mt-1 font-medium">+8% <i class="fas fa-arrow-up"></i></p>
+                        </div>
+                    </div>
+
+                    <!-- Chef Applications -->
+                    <div class="bg-white rounded-2xl shadow-sm mb-4">
+                        <div class="p-4 border-b border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <h2 class="font-bold">Заявки поваров</h2>
+                                <span id="admin-apps-count" class="bg-orange-100 text-orange-600 px-2 py-1 rounded-full text-xs font-bold">2</span>
+                            </div>
+                        </div>
+                        <div id="admin-applications" class="divide-y divide-gray-100">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+
+                    <!-- Active Couriers -->
+                    <div class="bg-white rounded-2xl shadow-sm">
+                        <div class="p-4 border-b border-gray-100">
+                            <h2 class="font-bold">Курьеры онлайн</h2>
+                        </div>
+                        <div id="admin-couriers" class="divide-y divide-gray-100">
+                            <!-- Dynamic -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-area-pt pb-0">
+            <div class="flex justify-around py-2 px-2">
+                <button onclick="showScreen('home', this)" class="nav-item active flex flex-col items-center py-2 px-3 rounded-xl active:bg-purple-50">
+                    <i class="fas fa-home text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Главная</span>
+                </button>
+                <button onclick="showScreen('catalog', this)" class="nav-item flex flex-col items-center py-2 px-3 rounded-xl active:bg-purple-50">
+                    <i class="fas fa-utensils text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Каталог</span>
+                </button>
+                <button onclick="showScreen('orders', this)" class="nav-item flex flex-col items-center py-2 px-3 rounded-xl active:bg-purple-50">
+                    <i class="fas fa-receipt text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Заказы</span>
+                </button>
+                <button onclick="showScreen('cart', this)" class="nav-item relative flex flex-col items-center py-2 px-3 rounded-xl active:bg-purple-50">
+                    <i class="fas fa-shopping-basket text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Корзина</span>
+                    <span id="cart-badge" class="hidden absolute -top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">0</span>
+                </button>
+                <button onclick="showScreen('profile', this)" class="nav-item flex flex-col items-center py-2 px-3 rounded-xl active:bg-purple-50">
+                    <i class="fas fa-user text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Профиль</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                        console.log('Service Worker зарегистрирован успешно:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Ошибка регистрации Service Worker:', error);
+                    });
+            });
+        }
+
+        // Mobile-specific enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Предотвращение масштабирования при двойном тапе
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+
+            // Улучшение навигации для мобильных устройств
+            if ('ontouchstart' in window) {
+                document.body.classList.add('touch-device');
+            }
+
+            // Обработка быстрого нажатия для мобильных
+            document.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            // Виброотклик для мобильных устройств
+            if (navigator.vibrate) {
+                document.addEventListener('click', function(e) {
+                    if (e.target.matches('button, .btn, .nav-item, .chef-card, .dish-card')) {
+                        navigator.vibrate(50);
+                    }
+                });
+            }
+        });
+
+        // Обработка состояния приложения (background/foreground)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                console.log('Приложение перешло в фон');
+            } else {
+                console.log('Приложение активно');
+            }
+        });
+    </script>
+</body>
+</html>
