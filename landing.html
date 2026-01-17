@@ -54,6 +54,12 @@
             background: var(--light);
             overflow-x: hidden;
         }
+
+        /* Prevent any accidental horizontal scroll */
+        html, body { width: 100%; max-width: 100%; }
+
+        img, svg { max-width: 100%; height: auto; display: block; }
+        .container { overflow: hidden; }
         
         /* Smooth scrolling */
         html {
@@ -679,32 +685,93 @@
             .nav-links {
                 display: none;
             }
-            
-            .hero-title {
-                font-size: 2.5rem;
+            .logo { font-size: 20px; }
+
+            .hero {
+                padding: 60px 0;
+                min-height: 70vh;
             }
-            
+
+            .hero-title {
+                font-size: 2rem;
+                line-height: 1.15;
+            }
+
+            .hero-subtitle { font-size: 1rem; }
+
+            .hero-buttons { flex-direction: column; align-items: stretch; }
+
+            /* Make phone mock wider and more natural on mobile */
             .hero-app-mockup {
                 position: relative;
                 right: auto;
                 top: auto;
                 transform: none;
-                margin: 40px auto;
+                margin: 20px auto 0;
+                width: min(360px, 96%);
+                height: auto;
+                border-radius: 28px;
+                padding-bottom: 6px;
             }
-            
+
+            .hero-app-mockup .app-screen {
+                width: 100%;
+                height: auto;
+                min-height: 440px;
+                border-radius: 22px;
+            }
+
+            .hero-app-mockup .app-content {
+                width: 100%;
+                height: auto;
+                min-height: 420px;
+                border-radius: 18px;
+                padding-bottom: 12px;
+            }
+
+            .app-list { height: auto; max-height: 420px; }
+
+            .app-item { padding: 10px; gap: 10px; }
+            .app-item-img { width: 48px; height: 48px; font-size: 13px; }
+            .app-item-info h4 { font-size: 14px; }
+            .app-item-info p { font-size: 12px; }
+
             .showcase-container {
                 grid-template-columns: 1fr;
-                gap: 40px;
+                gap: 28px;
             }
-            
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
+
+            /* Ensure features grid stacks cleanly on small screens */
+            .features-grid { grid-template-columns: 1fr; gap: 18px; }
+
+            /* Mobile menu content should not overflow viewport */
+            .mobile-menu-content {
+                position: absolute;
+                top: 64px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+                box-sizing: border-box;
+                display: none;
             }
-            
-            .section-title {
-                font-size: 2rem;
-            }
+            .mobile-menu-content.show { display: block; }
+
+            /* Make interactive demo responsive */
+            .demo-content { padding: 20px; }
+            .demo-screen { margin: 0 auto; }
+
+            .cta-buttons { flex-direction: column; align-items: center; }
+
+            .section-title { font-size: 1.8rem; }
+
+            .container { padding: 0 14px; }
+
+            .btn { width: 100%; justify-content: center; padding: 12px 16px; }
+
+            /* Mobile menu: show hamburger */
+            .mobile-menu { display: flex; }
+            .mobile-menu-content { display: none; }
+            .mobile-menu-content.show { display: block; }
         }
     </style>
 </head>
@@ -722,6 +789,15 @@
                 <li><a href="#cta">Скачать</a></li>
                 <li><a href="#footer">Контакты</a></li>
             </ul>
+            <div class="mobile-menu" aria-hidden="false">
+                <button class="mobile-menu-btn" aria-label="Открыть меню"><i class="fas fa-bars"></i></button>
+                <div class="mobile-menu-content" aria-hidden="true">
+                    <a href="#features">Возможности</a>
+                    <a href="#showcase">О приложении</a>
+                    <a href="#cta">Скачать</a>
+                    <a href="#footer">Контакты</a>
+                </div>
+            </div>
         </nav>
     </header>
 
@@ -1166,15 +1242,20 @@
             });
         });
 
-        // Mobile menu toggle
+        // Mobile menu toggle (use class to show/hide)
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('.mobile-menu-btn');
-            if (btn) {
-                const content = document.querySelector('.mobile-menu-content');
-                if (content) {
-                    content.style.display = content.style.display === 'block' ? 'none' : 'block';
-                }
+            const mobileContent = document.querySelector('.mobile-menu-content');
+            if (btn && mobileContent) {
+                mobileContent.classList.toggle('show');
+                mobileContent.setAttribute('aria-hidden', mobileContent.classList.contains('show') ? 'false' : 'true');
+                return;
+            }
 
+            // Close menu when clicking outside
+            if (mobileContent && !e.target.closest('.mobile-menu')) {
+                mobileContent.classList.remove('show');
+                mobileContent.setAttribute('aria-hidden', 'true');
             }
         });
         // Demo simulation functions
